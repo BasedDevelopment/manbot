@@ -65,7 +65,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	// Split message by spaces
 	words := strings.Split(m.Content, " ")
 	// Check if first word is manpage
-	if len(words) != 3 || words[0] != "!man" {
+	if len(words) != 3 || words[0] != "man!" {
 		return
 	}
 	manpage(s, m, words[1], words[2])
