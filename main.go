@@ -68,8 +68,8 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if len(words) != 3 || words[0] != "man!" {
 		return
 	}
+	fmt.Println(m.Author.Username + ": " + m.Content)
 	manpage(s, m, words[1], words[2])
-
 }
 
 func manpage(s *discordgo.Session, m *discordgo.MessageCreate, section string, command string) {
@@ -77,9 +77,21 @@ func manpage(s *discordgo.Session, m *discordgo.MessageCreate, section string, c
 	defer resp.Body.Close()
 	body, _ := ioutil.ReadAll(resp.Body)
 	// check err code
+
 	if resp.StatusCode != 200 {
-		s.ChannelMessageSend(m.ChannelID, "Error: "+string(body))
-		return
+		switch resp.StatusCode {
+		case 404:
+			s.ChannelMessageSend(m.ChannelID, "No manpage found for "+section+" "+command)
+			return
+		case 500:
+			fmt.Println("Internal server error" + string(body))
+			s.ChannelMessageSend(m.ChannelID, "Internal server error")
+			return
+		default:
+			fmt.Println("Unknown error code: " + string(resp.StatusCode) + " " + string(body))
+			s.ChannelMessageSend(m.ChannelID, "Unknown error")
+			return
+		}
 	}
 	//split it by new ZWSC
 	words := strings.SplitAfter(string(body), "\n\n")
