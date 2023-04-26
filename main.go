@@ -33,6 +33,10 @@ func main() {
 		fmt.Println("No discord token found")
 		return
 	}
+	if k.String("man.server") == "" {
+		fmt.Println("No manpage server url found")
+		return
+	}
 	dg, err := discordgo.New("Bot " + k.String("discord.token"))
 	if err != nil {
 		fmt.Println("error creating Discord session,", err)
@@ -69,7 +73,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 }
 
 func manpage(s *discordgo.Session, m *discordgo.MessageCreate, section string, command string) {
-	resp, _ := http.Get("http://localhost:3014/" + section + "/" + command)
+	resp, _ := http.Get(k.String("man.server") + section + "/" + command)
 	defer resp.Body.Close()
 	body, _ := ioutil.ReadAll(resp.Body)
 	// check err code

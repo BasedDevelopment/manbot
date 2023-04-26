@@ -1,2 +1,5 @@
 [discord]
 token = ""
+
+[man]
+server = "http://localhost:3014/"
