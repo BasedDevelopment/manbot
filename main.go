@@ -133,8 +133,8 @@ func manpage(s *discordgo.Session, m *discordgo.MessageCreate, section string, c
 			}
 		}
 	}
-	//split it by newspaces
-	sections := strings.SplitAfter(string(body), "\n\n")
+	//split it by zero width space
+	sections := strings.SplitAfter(string(body), "\u200b")
 
 	// Make an embed with each word as its own embed and send to discord
 	embeds := []*discordgo.MessageEmbed{}
