@@ -143,7 +143,7 @@ func manpage(s *discordgo.Session, m *discordgo.MessageCreate, section string, c
 		split := strings.SplitN(section, "\n", 2)
 		title := split[0]
 		if len(split) == 1 {
-			break
+			continue
 		}
 		description := split[1]
 		if len(description) > 4096 {
