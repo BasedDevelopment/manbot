@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -64,45 +65,96 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 	// Split message by spaces
 	words := strings.Split(m.Content, " ")
-	// Check if first word is manpage
-	if len(words) != 3 || words[0] != "man!" {
+	// Check if first word is man!
+	if words[0] != "man!" {
 		return
 	}
-	fmt.Println(m.Author.Username + ": " + m.Content)
-	manpage(s, m, words[1], words[2])
+	fmt.Println(m.Author.Username + "#" + m.Author.Discriminator + ": " + m.Content)
+	if len(words) == 2 {
+		manpage(s, m, "0", words[1])
+	}
+	if len(words) == 3 {
+		manpage(s, m, words[1], words[2])
+	}
+}
+
+func getManPage(section string, command string) (status int, body string, err error) {
+	resp, err := http.Get(k.String("man.server") + section + "/" + command)
+	if resp != nil {
+		defer resp.Body.Close()
+	}
+	if err != nil {
+		return 0, "", err
+	}
+	status = resp.StatusCode
+	bodyBytes, _ := ioutil.ReadAll(resp.Body)
+	return status, string(bodyBytes), nil
 }
 
 func manpage(s *discordgo.Session, m *discordgo.MessageCreate, section string, command string) {
-	resp, _ := http.Get(k.String("man.server") + section + "/" + command)
-	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body)
-	// check err code
-
-	if resp.StatusCode != 200 {
-		switch resp.StatusCode {
-		case 404:
-			s.ChannelMessageSend(m.ChannelID, "No manpage found for "+section+" "+command)
-			return
-		case 500:
-			fmt.Println("Internal server error" + string(body))
-			s.ChannelMessageSend(m.ChannelID, "Internal server error")
-			return
-		default:
-			fmt.Println("Unknown error code: " + string(resp.StatusCode) + " " + string(body))
-			s.ChannelMessageSend(m.ChannelID, "Unknown error")
+	body := ""
+	err := error(nil)
+	status := 0
+	if section == "0" {
+		for i := 1; i < 10; i++ {
+			status, body, _ = getManPage(strconv.Itoa(i), command)
+			if status == 200 {
+				section = strconv.Itoa(i)
+				break
+			}
+		}
+		if status != 200 {
+			s.ChannelMessageSend(m.ChannelID, "No manpage found for "+command)
 			return
 		}
+
+	} else {
+
+		status, body, err = getManPage(section, command)
+
+		if err != nil {
+			s.ChannelMessageSend(m.ChannelID, "Internal server error")
+			return
+		}
+
+		if status != 200 {
+			switch status {
+			case 404:
+				s.ChannelMessageSend(m.ChannelID, "No manpage found for "+section+" "+command)
+				return
+			case 500:
+				fmt.Println("Internal server error" + string(body))
+				s.ChannelMessageSend(m.ChannelID, "Internal server error")
+				return
+			default:
+				fmt.Println("Unknown error code: " + string(status) + " " + string(body))
+				s.ChannelMessageSend(m.ChannelID, "Unknown error")
+				return
+			}
+		}
 	}
-	//split it by new ZWSC
-	words := strings.SplitAfter(string(body), "\n\n")
+	//split it by newspaces
+	sections := strings.SplitAfter(string(body), "\n\n")
 
 	// Make an embed with each word as its own embed and send to discord
 	embeds := []*discordgo.MessageEmbed{}
-	for _, word := range words {
+	for _, section := range sections {
 		// split on the first newline
-		split := strings.SplitN(word, "\n", 2)
+		split := strings.SplitN(section, "\n", 2)
 		title := split[0]
+		if len(split) == 1 {
+			break
+		}
 		description := split[1]
+		if len(description) > 4096 {
+			for len(description) > 4096 {
+				embeds = append(embeds, &discordgo.MessageEmbed{
+					Title:       title,
+					Description: description[:4096],
+				})
+				description = description[4096:]
+			}
+		}
 		embeds = append(embeds, &discordgo.MessageEmbed{
 			Title:       title,
 			Description: description,
@@ -112,10 +164,14 @@ func manpage(s *discordgo.Session, m *discordgo.MessageCreate, section string, c
 	thread, err := s.MessageThreadStart(m.ChannelID, m.ID, "man "+section+" "+command, 60)
 	if err != nil {
 		fmt.Println(err)
+		return
 	}
 
 	for _, embed := range embeds {
-		s.ChannelMessageSendEmbed(thread.ID, embed)
+		_, err := s.ChannelMessageSendEmbed(thread.ID, embed)
+		if err != nil {
+			fmt.Println(err)
+		}
 	}
 
 }
