@@ -9,6 +9,6 @@ or you can also choose to not supply a chapter
 
 `man! connect`
 
-![screenshot of bot](https://not-a.link/9LywB4B.png)
+![screenshot of bot](https://not-a.link/jpYKf1j.png)
 
-DM finnekit#0001 for hosted version invite link.
+DM `ezrieh` for hosted version invite link.
